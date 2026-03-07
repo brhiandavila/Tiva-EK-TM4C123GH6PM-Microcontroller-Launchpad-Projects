@@ -1,0 +1,17 @@
+Debug/ 
+Release/ 
+.launches/ 
+.settings/ 
+.ccsproject 
+.cproject 
+.project 
+macros.ini_initial 
+drivers/ 
+third_party/ 
+utils/ 
+startup_ccs.c 
+blinky_queue_ccs.cmd 
+target_config.ccxml 
+*.out 
+*.map 
+*.hex
