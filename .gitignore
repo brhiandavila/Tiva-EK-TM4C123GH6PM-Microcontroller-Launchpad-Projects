@@ -7,7 +7,6 @@ Release/
 .project 
 macros.ini_initial 
 drivers/ 
-third_party/ 
 utils/ 
 *.out 
 *.map 
