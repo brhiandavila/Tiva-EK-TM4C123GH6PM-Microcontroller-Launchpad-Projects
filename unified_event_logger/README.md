@@ -71,6 +71,7 @@ of any button press.*
 
 ### UART event log
 ![PuTTY event log](docs/putty_event_log.png)
+
 *Captured terminal output showing all three event types interleaved.
 Timer fire ticks land exactly 5000 ticks apart (370000 → 375000 → 380000
 → 385000), confirming the 5-second status timer period is accurate.*
