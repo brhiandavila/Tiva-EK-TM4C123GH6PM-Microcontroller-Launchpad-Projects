@@ -63,6 +63,7 @@ static void prvEventHandlerTask( void *pvParameters );
 static void prvStatusTimerCallback( TimerHandle_t xTimer );
 
 static void prvConfigureButtons( void );
+static void prvConfigureDebugPins( void );
 void xButtonsHandler( void );
 
 void vApplicationTickHook( void );
@@ -70,6 +71,7 @@ void vApplicationTickHook( void );
 void vUnifiedEventLoggerTask( void )
 {
     prvConfigureButtons();
+    prvConfigureDebugPins();
 
     xEventQueue = xQueueCreate(EVENT_QUEUE_LENGTH, sizeof(xEvent_t));
 
@@ -122,6 +124,19 @@ static void prvConfigureButtons( void )
     IntMasterEnable();
 }
 
+static void prvConfigureDebugPins( void )
+{
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOC);
+    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOC));
+
+    GPIOPinTypeGPIOOutput(GPIO_PORTC_BASE,
+                           GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7);
+
+    /* Start all debug pins low */
+    GPIOPinWrite(GPIO_PORTC_BASE,
+                 GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7, 0);
+}
+
 void xButtonsHandler( void )
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
@@ -145,10 +160,12 @@ void xButtonsHandler( void )
     if(ui32Status & LEFT_BUTTON)
     {
         xEvent.ucEventType = EVENT_SW1;
+        GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_4, GPIO_PIN_4); // PC4 high - SW1
     }
     else if(ui32Status & RIGHT_BUTTON)
     {
         xEvent.ucEventType = EVENT_SW2;
+        GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_5, GPIO_PIN_5); // PC5 high - SW2
     }
     else
     {
@@ -201,8 +218,10 @@ static void prvEventHandlerTask( void *pvParameters )
                 g_ulSW1Count++;
 
                 LEDWrite( 0x07, RED_LED );
+                GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_6, GPIO_PIN_6); // PC6 high - LED active
                 vTaskDelay( pdMS_TO_TICKS( LED_PULSE_MS ) );
                 LEDWrite( 0x07, 0 );
+                GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_6, 0); // PC6 low - LED off
 
                 /* Print to UART protected by mutex. */
                 if( xSemaphoreTake( xUARTMutex, portMAX_DELAY ) == pdTRUE )
@@ -212,14 +231,17 @@ static void prvEventHandlerTask( void *pvParameters )
                                 xEvent.ulTimestamp );
                     xSemaphoreGive( xUARTMutex );
                 }
+                GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_4, 0); // clear SW1 debug pin now
                 break;
 
                 case EVENT_SW2:
                 g_ulSW2Count++;
 
                 LEDWrite( 0x07, BLUE_LED );
+                GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_6, GPIO_PIN_6); // PC6 high - LED active
                 vTaskDelay( pdMS_TO_TICKS( LED_PULSE_MS ) );
                 LEDWrite( 0x07, 0 );
+                GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_6, 0); // PC6 low - LED off
 
                 /* Print to UART protected by mutex. */
                 if( xSemaphoreTake( xUARTMutex, portMAX_DELAY ) == pdTRUE )
@@ -229,14 +251,18 @@ static void prvEventHandlerTask( void *pvParameters )
                                 xEvent.ulTimestamp );
                     xSemaphoreGive( xUARTMutex );
                 }
+                GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_5, 0); // clear SW1 debug pin now
                 break;
 
                 case EVENT_TIMER:
                 g_ulTimerCount++;
-
+                GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_7, GPIO_PIN_7); // PC7 high - timer event detected
                 LEDWrite( 0x07, GREEN_LED );
+                GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_6, GPIO_PIN_6); // PC6 high - LED active
                 vTaskDelay( pdMS_TO_TICKS( LED_PULSE_MS ) );
                 LEDWrite( 0x07, 0 );
+                GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_6, 0); // PC6 low - LED off
+                GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_7, 0); // PC7 low
 
                 /* Print to UART protected by mutex. */
                 if( xSemaphoreTake( xUARTMutex, portMAX_DELAY ) == pdTRUE )

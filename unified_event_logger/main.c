@@ -36,20 +36,17 @@
 
 /******************************************************************************
  *
- * This example demonstrates passing a complex structure by value as well as
- * by reference using FreeRTOS's queue between multiple tasks.  Two queues are
- * set up with one for passing messages by value and another for passing by
- * reference.  A total of six tasks are created with four of them sending
- * messages through the two queues while the other two tasks receiving the
- * message from the two queues either by value or by reference.  The four tasks
- * transmit their messages at different times.  Their time stamp is sent as
- * the data as part of the message.  Once the data is received, the receiving
- * tasks print the task ID and its corresponding time stamp on the terminal
- * window.
+ * This example demonstrates a unified event logging system using FreeRTOS.
+ * Three independent event sources - two debounced GPIO button interrupts
+ * (SW1, SW2) and a recurring software timer - all send event data through
+ * a single queue to one consumer task. The consumer task increments a
+ * pre-event counter (how many times an event has occurred), pulses the onboard
+ * LED, and prints a timestamped status message over UART, with access to the
+ * shared UART resource protected by a mutex.
  *
  * This example uses UARTprintf for output of UART messages.  UARTprintf is not
- * a thread-safe API and is only being used for simplicity of the demonstration
- * and in a controlled manner.
+ * a thread-safe API; access here is serialized explicitly via a FreeRTOS mutex
+ * around each print.
  *
  * Open a terminal with 115,200 8-N-1 to see the output for this demo.
  *
@@ -103,7 +100,7 @@ int main( void )
     /* If all is well, the scheduler will now be running, and the following
     line will never be reached.  If the following line does execute, then
     there was insufficient FreeRTOS heap memory available for the idle and/or
-    timer tasks to be created.  See the memory management section on the
+    timer tasks to be created. See the memory management section on the
     FreeRTOS web site for more details. */
     for( ;; );
 }
@@ -111,24 +108,20 @@ int main( void )
 
 static void prvConfigureUART(void)
 {
-    /* Enable GPIO port A which is used for UART0 pins.
-     * TODO: change this to whichever GPIO port you are using. */
+    // Enable GPIO port A which is used for UART0 pins
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
 
-    /* Configure the pin muxing for UART0 functions on port A0 and A1.
-     * This step is not necessary if your part does not support pin muxing.
-     * TODO: change this to select the port/pin you are using. */
+    // Configure the pin muxing for UART0 functions on port A0 and A1.
     GPIOPinConfigure(GPIO_PA0_U0RX);
     GPIOPinConfigure(GPIO_PA1_U0TX);
 
-    /* Enable UART0 so that we can configure the clock. */
+    // Enable UART0 so that we can configure the clock.
     SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
 
-    /* Use the internal 16MHz oscillator as the UART clock source. */
+    // Use the internal 16MHz oscillator as the UART clock source.
     UARTClockSourceSet(UART0_BASE, UART_CLOCK_PIOSC);
 
-    /* Select the alternate (UART) function for these pins.
-     * TODO: change this to select the port/pin you are using. */
+    // Select the alternate (UART) function for these pins.
     GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
 
     /* Initialize the UART for console I/O. */
