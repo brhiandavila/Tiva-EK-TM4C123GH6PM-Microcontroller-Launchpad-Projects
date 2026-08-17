@@ -124,6 +124,17 @@ expected behavior rather than a one-off artifact.*
   execution if called, since the project relies entirely on FreeRTOS's own
   heap (`pvPortMalloc`) for all task/event-group/semaphore creation — a
   deliberate fail-loud safety pattern rather than an oversight.
+- **ADC completion is polled, not interrupt-driven (possible improvement)**:
+  both producer tasks wait for their conversion to finish with a busy-wait
+  loop on the ADC's raw interrupt status flag (`ADCIntStatus(..., false)`),
+  rather than routing that flag to the NVIC and blocking on a semaphore or
+  task notification. The flag itself (`ADCRIS`) is deliberately readable
+  this way — TI's datasheet documents polling it directly as a valid,
+  supported use — but doing so inside an RTOS task spends CPU cycles the
+  scheduler could otherwise give to other tasks while the conversion is in
+  progress. A future revision would enable the ADC interrupt, register an
+  ISR that gives a semaphore (or notifies the task directly), and have each
+  producer task block on that instead of spinning.
 
 ## How to build / run
 
