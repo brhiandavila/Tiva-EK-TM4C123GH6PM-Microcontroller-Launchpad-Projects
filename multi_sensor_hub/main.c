@@ -1,5 +1,5 @@
 /*
- * uart_thread_safe
+ * multi_sensor_hub
  *
  * Copyright (C) 2022 Texas Instruments Incorporated
  * 
@@ -36,20 +36,17 @@
 
 /******************************************************************************
  *
- * This project demonstrates how to use the UART peripheral in a thread safe
- * manner.  A mutex is created and used to guard the UART output function until
- * each string is fully sent.  One UART output function uses a basic UART
- * string output with no special character handling.  The other uses the
- * TivaWare UART standard IO module to output a message including a timestamp.
+ * multi_sensor_hub
  *
- * main() creates one task.  It then starts the scheduler.
+ * Two independent ADC producer tasks (potentiometer on PE3, internal die
+ * temperature sensor) each sample on a fixed period and signal completion
+ * via a FreeRTOS event group. PrvProcessingTask blocks until both bits are
+ * set, consuming no CPU while idle, converts the raw temperature reading
+ * to Celsius, and prints both values over UART0 (115200-8-N-1), guarded by
+ * a mutex.
  *
- * vUARTTask handles the configuration of the UART peripheral and creates the
- * mutex that is used to guard the UART output functions.  If successful, it
- * then creates two tasks used to demonstrate sending UART data in a thread
- * safe manner.
- *
- * Open a terminal with 115,200 8-N-1 to see the output for this demo.
+ * main() brings up the UART/mutex, the ADC tasks, and the debug
+ * instrumentation pins, then starts the scheduler.
  *
  */
 
@@ -72,12 +69,13 @@
 #include "drivers/rtos_hw_drivers.h"
 /*-----------------------------------------------------------*/
 
-/* Set up the hardware ready to run this demo. */
 static void prvSetupHardware( void );
 
-/* API to trigger the UART task. */
+/* Configures UART0 and creates the mutex that guards it (uart_task.c) */
 extern void vUARTTask( void );
 
+/* Configures the ADC channels, debug pins, event group, and sensor/
+ * processing tasks (adc_task.c). */
 extern void vADCTask( void );
 /*-----------------------------------------------------------*/
 
@@ -88,14 +86,13 @@ int main( void )
 
     /* Configure the UART module and output messages to a terminal. */
     vUARTTask();
-
     vADCTask();
 
     /* Start the tasks and timer running. */
     vTaskStartScheduler();
 
     /* If all is well, the scheduler will now be running, and the following
-    line will never be reached.  If the following line does execute, then
+    line will never be reached. If the following line does execute, then
     there was insufficient FreeRTOS heap memory available for the idle and/or
     timer tasks to be created.  See the memory management section on the
     FreeRTOS web site for more details. */
