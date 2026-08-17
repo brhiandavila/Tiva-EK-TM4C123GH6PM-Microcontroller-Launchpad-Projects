@@ -127,8 +127,6 @@ expected behavior rather than a one-off artifact.*
 
 ## How to build / run
 
-## How to build / run
-
 **Toolchain**: Code Composer Studio (CCS), TivaWare C Series
 (2.2.0.295), TM4C123GH6PM target.
 
