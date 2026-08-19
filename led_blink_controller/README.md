@@ -43,18 +43,18 @@ indefinitely waiting for a first value to arrive.
 - **`prvUARTStatusTask`** — an independent third task that reports the
   current blink rate over UART every 3 seconds, for visibility.
 
-  ## Hardware setup
+## Hardware setup
 - **Board**: TM4C123GXL Launchpad (TM4C123GH6PM)
 - **SW1 / SW2**: onboard buttons, configured for falling-edge interrupts
 - **LED**: onboard red LED
 - **UART**: UART0 on PA0 (RX) / PA1 (TX), 115200 8-N-1
 - **Debug/verification pins (PC4–PC6)**: added solely to make internal
-  button and LED events visible on a logic analyzer, since the onboard
-  button/LED pins are too small to probe directly. These mirror existing
-  signals and are not part of the project's core functionality:
-  - PC4 — SW1 press event pulse
-  - PC5 — SW2 press event pulse
-  - PC6 — LED state mirror (tracks the LED's actual on/off period)
+button and LED events visible on a logic analyzer, since the onboard
+button/LED pins are too small to probe directly. These mirror existing
+signals and are not part of the project's core functionality:
+- PC4 — SW1 press event pulse
+- PC5 — SW2 press event pulse
+- PC6 — LED state mirror (tracks the LED's actual on/off period)
 
 ## Verified behavior
 
