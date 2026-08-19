@@ -1,5 +1,5 @@
 /*
- * blinky_queue
+ * led_blink_controller
  *
  * Copyright (C) 2022 Texas Instruments Incorporated
  * 
@@ -34,19 +34,18 @@
  *
 */
 
- /******************************************************************************
+/******************************************************************************
  *
  * This project demonstrates how to configure the TM4C123GH6PM to blink a LED
- * at a user input controlled rate by using FreeRTOS queues.  The default blink
- * rate will be 1 HZ, but a user can speed up or slow down the blink rate via
- * the buttons on the EK-TM4C123GXL LaunchPad.  Pressing the SW1 button will
- * increase the blinking rate and pressing the SW2 button will slow down the
- * blinking rate.
+ * at a rate the user can adjust at runtime, using a FreeRTOS queue to pass
+ * the new rate between tasks. Pressing either SW1 or SW2 on the
+ * EK-TM4C123GXL LaunchPad cycles the blink rate through three fixed speeds
+ * (fast, medium, slow, wrapping back around) - both buttons currently
+ * trigger the same cycle rather than driving it in opposite directions.
  *
- * main() creates one task.  It then starts the scheduler.
- *
- * The Blinky task will create a sending task, a receiving task, and the queue
- * that is used to transfer data between the two tasks.
+ * main() creates one task, vBlinkyTask(), which in turn creates the button,
+ * LED, and UART status tasks, plus the queue used to pass the rate between
+ * them. main() then starts the scheduler.
  *
  */
 

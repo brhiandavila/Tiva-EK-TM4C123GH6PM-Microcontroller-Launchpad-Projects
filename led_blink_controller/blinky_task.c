@@ -36,41 +36,24 @@
 
 /******************************************************************************
  *
- * This project demonstrates how to configure the TM4C123GH6PM to blink a LED
- * using FreeRTOS queue.  Two tasks and one queue are created for this example.
- * The sending task sends a parameter at an interval of 1000ms to the queue.
- * The receiving task is in blocked state until  something is received in the
- * queue.  Upon receiving a correct parameter from the queue it sets the LED
- * for 500ms and then clears the LED for another 500ms.
+ * blinky_task
  *
- * When either user switch SW1 or SW2 on the EK-TM4C123GXL is pressed, an
- * interrupt is generated to change the blink rate.  The amount of increase
- * or decrease is controlled by the #define BLINK_RATE.  SW1 is pressed to
- * speed up the blink rate while SW2 is pressed to slow down the blink rate.
+ * Blinks the onboard LED on the TM4C123GH6PM at a user-adjustable rate.
+ * SW1 cycles the blink rate through three fixed speeds (fast/medium/slow);
+ * SW2 is wired the same way but currently drives the same cycle as SW1.
  *
- * vBlinkyTask() creates one queue, and two tasks.  It then starts the
- * scheduler.
+ * A debounced GPIO interrupt notifies prvButtonTask directly via a FreeRTOS
+ * task notification. prvButtonTask advances to the next rate and pushes it
+ * into a 1-deep queue. prvLEDBlinkTask non-blockingly checks that queue each
+ * time it comes back around its own blink delay, so a button press is
+ * picked up on the LED's next toggle rather than waiting on the queue and
+ * stalling until the current blink phase finishes.
  *
- * The Queue Send Task:
- * The queue send task is implemented by the prvQueueSendTask() function in
- * this file.  prvQueueSendTask() sits in a loop that causes it to repeatedly
- * block for 1000 milliseconds, before sending the value 100 to the queue that
- * was created within vBlinkyTask().  Once the value is sent, the task loops
- * back around to block for another 1000 milliseconds.
+ * A third, independent task (prvUARTStatusTask) reports the current blink
+ * rate over UART every 3 seconds.
  *
- * The Queue Receive Task:
- * The queue receive task is implemented by the prvQueueReceiveTask() function
- * in this file.  prvQueueReceiveTask() sits in a loop where it repeatedly
- * blocks on attempts to read data from the queue that was created within
- * vBlinkyTask().  When data is received, the task checks the value of the
- * data, and if the value equals the expected 100, sets the LED.  The 'block
- * time' parameter passed to the queue receive function specifies that the
- * task should be held in the Blocked state indefinitely to wait for data to
- * be available on the queue.  The queue receive task will only leave the
- * Blocked state when the queue send task writes to the queue.  As the queue
- * send task writes to the queue every 1000 milliseconds, the queue receive
- * task leaves the Blocked state every 1000 milliseconds.  Once unblocked,
- * the LED is first set for 500ms and then clear for 500ms.
+ * vBlinkyTask() creates the queue and all three tasks, then returns to
+ * main() to start the scheduler.
  *
  */
 
@@ -95,17 +78,17 @@
 /*-----------------------------------------------------------*/
 
 /* Blink rates depending on button task*/
+#define BLINK_RATE_FAST     500  // 500ms
+#define BLINK_RATE_MEDIUM   1000 // 1000ms
+#define BLINK_RATE_SLOW     2000 // 2000ms
 
-#define BLINK_RATE_FAST 500 // 500ms
-
-#define BLINK_RATE_MEDIUM 1000 // 1000ms
-
-#define BLINK_RATE_SLOW 2000 // 2000ms
+/* Debug pins */
+#define DEBUG_SW1_PULSE    GPIO_PIN_4
+#define DEBUG_SW2_PULSE    GPIO_PIN_5
+#define DEBUG_LED_STATE    GPIO_PIN_6
 
 static QueueHandle_t xBlinkRateQueue = NULL;
-
 static TaskHandle_t xButtonTaskHandle = NULL;
-
 static uint32_t g_ui32CurrentRate = BLINK_RATE_MEDIUM;
 
 /*
@@ -118,7 +101,6 @@ volatile uint32_t g_ui32TimeStamp = 0;
  */
 static void prvButtonTask( void *pvParameters );
 static void prvLEDBlinkTask( void *pvParameters );
-
 static void prvUARTStatusTask( void *pvParameters );
 
 /*
@@ -130,6 +112,7 @@ void vBlinkyTask( void );
  * Hardware configuration for the buttons SW1 and SW2 to generate interrupts.
  */
 static void prvConfigureButton( void );
+static void prvConfigureDebugPins( void );
 void xButtonsHandler( void );
 /*-----------------------------------------------------------*/
 
@@ -137,6 +120,7 @@ void vBlinkyTask( void )
 {
     /* Configure a button to generate interrupts (for test purposes). */
     prvConfigureButton();
+    prvConfigureDebugPins();
 
     /* This is the queue to pass blink rates */
     xBlinkRateQueue = xQueueCreate(1, sizeof(uint32_t));
@@ -211,10 +195,12 @@ static void prvLEDBlinkTask( void *pvParameters )
 
         /* Toggle the LED */
         LEDWrite(0x0F, RED_LED);
+        GPIOPinWrite(GPIO_PORTC_BASE, DEBUG_LED_STATE, DEBUG_LED_STATE);
         vTaskDelay(pdMS_TO_TICKS(ui32BlinkRate));
 
         /* Turn off LED */
         LEDWrite(0x0F, 0);
+        GPIOPinWrite(GPIO_PORTC_BASE, DEBUG_LED_STATE, 0);
         vTaskDelay(pdMS_TO_TICKS(ui32BlinkRate));
     }
 }
@@ -268,6 +254,16 @@ void xButtonsHandler( void )
     /* Debounce the input with 200ms filter */
     if ((xTaskGetTickCount() - g_ui32TimeStamp ) > 200)
     {
+        if (ui32Status & LEFT_BUTTON) {
+            GPIOPinWrite(GPIO_PORTC_BASE, DEBUG_SW1_PULSE, DEBUG_SW1_PULSE);
+            GPIOPinWrite(GPIO_PORTC_BASE, DEBUG_SW1_PULSE, 0);
+        }
+
+        if (ui32Status & RIGHT_BUTTON) {
+            GPIOPinWrite(GPIO_PORTC_BASE, DEBUG_SW2_PULSE, DEBUG_SW2_PULSE);
+            GPIOPinWrite(GPIO_PORTC_BASE, DEBUG_SW2_PULSE, 0);
+        }
+
         /* Notify the Button Task that a button was pressed */
         vTaskNotifyGiveFromISR(xButtonTaskHandle, &xHigherPriorityTaskWoken);
 
@@ -280,6 +276,16 @@ void xButtonsHandler( void )
 }
 /*-----------------------------------------------------------*/
 
+static void prvConfigureDebugPins( void ){
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOC);
+
+    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOC));
+
+    GPIOPinTypeGPIOOutput(GPIO_PORTC_BASE, (DEBUG_SW1_PULSE | DEBUG_SW2_PULSE | DEBUG_LED_STATE));
+
+    GPIOPinWrite(GPIO_PORTC_BASE, (DEBUG_SW1_PULSE | DEBUG_SW2_PULSE | DEBUG_LED_STATE), 0);
+}
+/*-----------------------------------------------------------*/
 void vApplicationTickHook( void )
 {
     /* This function will be called by each tick interrupt if
