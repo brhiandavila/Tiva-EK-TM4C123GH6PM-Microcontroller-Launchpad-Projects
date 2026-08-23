@@ -62,6 +62,8 @@ finishes handling the event.*
 
 ### LED and timer events
 ![LED active pulse](docs/led_active_pulse.png)
+
+
 *PC6 — pulses high for the duration of `LED_PULSE_MS` (200ms) each time
 any event is handled.*
 
