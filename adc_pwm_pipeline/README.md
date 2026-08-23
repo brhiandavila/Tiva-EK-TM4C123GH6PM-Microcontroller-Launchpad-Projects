@@ -62,6 +62,7 @@ the other task sees.
 
 ### UART pipeline log
 ![PuTTY pipeline log](docs/putty_pipeline_log.png)
+
 *Captured terminal output showing the raw ADC value and computed brightness
 percentage updating every 2 seconds as the potentiometer is turned.*
 
