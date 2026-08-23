@@ -73,6 +73,7 @@ after some delay.*
 
 ### UART status log
 ![PuTTY blink rate log](docs/putty_blink_rate_log.png)
+
 *Captured terminal output showing the reported blink rate changing after
 button presses, cycling through fast, slow, and medium.*
 
