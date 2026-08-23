@@ -37,9 +37,7 @@
 #include "utils/uartstdio.h"
 
 static void prvSetupHardware( void );
-
 static void prvConfigureUART( void );
-
 extern void vADCPipelineTask( void );
 extern void vPWMPipelineTask( void );
 extern void vUARTPipelineTask( void );

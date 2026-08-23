@@ -31,15 +31,18 @@
 #include "utils/uartstdio.h"
 
 /*
- * The number of items the ADC queue can hold.  A depth of 5 ensures
- * the producer never blocks even if the consumer is momentarily busy.
+ * The number of items the ADC queue can hold. A depth of 1 is
+ * required here, not just sufficient: xQueueOverwrite() and
+ * xQueuePeek() must operate on the same single slot so consumers
+ * always read the true latest sample rather than a stale value
+ * left over from before the queue filled up.
  */
-#define ADC_QUEUE_DEPTH     ( 5 )
+#define ADC_QUEUE_DEPTH 1
 
 /*
  * The rate at which the ADC task samples the potentiometer.
  */
-#define ADC_SAMPLE_RATE_MS  ( 50 )
+#define ADC_SAMPLE_RATE_MS 50
 
 /*
  * The queue handle shared across the pipeline.  Declared here and
@@ -80,14 +83,14 @@ void vADCPipelineTask( void )
     /* Create the queue to pass ADC samples to the PWM task.
      * This must be created before the PWM and UART tasks are
      * created in main, as both depend on this handle. */
-    xAdcQueue = xQueueCreate( ADC_QUEUE_DEPTH, sizeof( uint32_t ) );
+    xAdcQueue = xQueueCreate(ADC_QUEUE_DEPTH, sizeof(uint32_t));
 
     /* Create the binary semaphore used to signal the PWM task
      * that a new ADC sample is ready. */
     xAdcSemaphore = xSemaphoreCreateBinary();
 
     /* Verify both were created successfully before proceeding. */
-    if( ( xAdcQueue != NULL ) && ( xAdcSemaphore != NULL ) )
+    if((xAdcQueue != NULL) && (xAdcSemaphore != NULL))
     {
         /* Create the ADC producer task.
          *
@@ -98,33 +101,33 @@ void vADCPipelineTask( void )
          *  - No parameter passed to the task.
          *  - The priority assigned to the task.
          *  - The task handle is not required, so NULL is passed. */
-        xTaskCreate( prvADCProducerTask,
-                     "ADC Producer",
-                     configMINIMAL_STACK_SIZE,
-                     NULL,
-                     tskIDLE_PRIORITY + 3,
-                     NULL );
+        xTaskCreate(prvADCProducerTask,
+                    "ADC Producer",
+                    configMINIMAL_STACK_SIZE,
+                    NULL,
+                    tskIDLE_PRIORITY + 3,
+                    NULL );
     }
 }
 
 static void prvConfigureADC( void )
 {
     /* Enable the ADC0 peripheral. */
-    SysCtlPeripheralEnable( SYSCTL_PERIPH_ADC0 );
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
 
     /* Enable GPIO Port E which contains AIN0 (PE3). */
-    SysCtlPeripheralEnable( SYSCTL_PERIPH_GPIOE );
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
 
     /* Wait for both peripherals to be ready. */
-    while( !SysCtlPeripheralReady( SYSCTL_PERIPH_ADC0 ) );
-    while( !SysCtlPeripheralReady( SYSCTL_PERIPH_GPIOE ) );
+    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_ADC0));
+    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOE));
 
     /* Configure PE3 as an ADC input pin. */
-    GPIOPinTypeADC( GPIO_PORTE_BASE, GPIO_PIN_3 );
+    GPIOPinTypeADC(GPIO_PORTE_BASE, GPIO_PIN_3);
 
     /* Configure sequencer 3 on ADC0 to be triggered by the
      * processor and at the highest priority (0). */
-    ADCSequenceConfigure( ADC0_BASE, 3, ADC_TRIGGER_PROCESSOR, 0 );
+    ADCSequenceConfigure(ADC0_BASE, 3, ADC_TRIGGER_PROCESSOR, 0);
 
     /* Configure the single step in sequencer 3.
      *
@@ -133,22 +136,22 @@ static void prvConfigureADC( void )
      *  - Sequencer:       3
      *  - Step:            0 (first and only step)
      *  - Channel/flags:   AIN0, interrupt enable, end of sequence */
-    ADCSequenceStepConfigure( ADC0_BASE, 3, 0,
-                              ADC_CTL_CH0 |
-                              ADC_CTL_IE  |
-                              ADC_CTL_END );
+    ADCSequenceStepConfigure(ADC0_BASE, 3, 0,
+                             ADC_CTL_CH0 |
+                             ADC_CTL_IE  |
+                             ADC_CTL_END );
 
     /* Enable sequencer 3 on ADC0. */
-    ADCSequenceEnable( ADC0_BASE, 3 );
+    ADCSequenceEnable(ADC0_BASE, 3);
 
     /* Clear any pending ADC interrupts before we begin. */
-    ADCIntClear( ADC0_BASE, 3 );
+    ADCIntClear(ADC0_BASE, 3);
 }
 
 static void prvADCProducerTask( void *pvParameters )
 {
-uint32_t ulADCValue;
-TickType_t xLastWakeTime;
+    uint32_t ulADCValue;
+    TickType_t xLastWakeTime;
 
     /* Initialize xLastWakeTime with the current tick count.  This
      * variable is updated by vTaskDelayUntil() every 50ms to keep
@@ -161,31 +164,30 @@ TickType_t xLastWakeTime;
          * Unlike vTaskDelay() which delays 50ms from whenever it is
          * called, vTaskDelayUntil() guarantees a fixed 50ms period
          * even if the task was preempted or took time to execute. */
-        vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS( ADC_SAMPLE_RATE_MS ) );
+        vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(ADC_SAMPLE_RATE_MS));
 
         /* Trigger a software conversion on sequencer 3. */
-        ADCProcessorTrigger( ADC0_BASE, 3 );
+        ADCProcessorTrigger(ADC0_BASE, 3);
 
         /* Wait for the conversion to complete by polling the
          * interrupt status flag we enabled with ADC_CTL_IE. */
-        while( !ADCIntStatus( ADC0_BASE, 3, false ) );
+        while(!ADCIntStatus(ADC0_BASE, 3, false));
 
         /* Clear the interrupt flag now that we have detected it. */
-        ADCIntClear( ADC0_BASE, 3 );
+        ADCIntClear(ADC0_BASE, 3);
 
         /* Read the conversion result from the sequencer 3 FIFO
          * into our local variable. */
-        ADCSequenceDataGet( ADC0_BASE, 3, &ulADCValue );
+        ADCSequenceDataGet(ADC0_BASE, 3, &ulADCValue);
 
-        /* Send the ADC value to the queue.  A block time of 0 means
-         * do not block if the queue is full — matching the pattern
-         * used in queue_example.  At a depth of 5 this should
-         * never happen in normal operation. */
-        xQueueOverwrite( xAdcQueue,
-                       ( void * ) &ulADCValue);
+        /* Overwrite the single-slot queue with the latest ADC sample.
+         * xQueueOverwrite() never blocks — if a value is already there,
+         * it's replaced outright rather than waiting for space, which is
+         * exactly what "always keep just the latest reading" needs. */
+        xQueueOverwrite(xAdcQueue, (void *) &ulADCValue);
 
         /* Give the binary semaphore to wake the PWM consumer task
          * and signal that a fresh ADC sample is in the queue. */
-        xSemaphoreGive( xAdcSemaphore );
+        xSemaphoreGive(xAdcSemaphore);
     }
 }
