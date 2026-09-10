@@ -85,11 +85,13 @@ one-shot startup task (`prvStartupTask`) that runs after
 
 ### Boot sequence and command interface
 ![PuTTY boot log](docs/putty_boot_log.png)
+
 *Startup banner, sensor detection (`WHO_AM_I` returning 0x68), and sensor
 initialization, confirming the startup task correctly verifies the sensor
 before the sample timer is started.*
 
 ![PuTTY sensor and command log](docs/putty_sensor_log.png)
+
 *Steady-state sensor output interleaved with `P`/`R`/`?` command
 responses, confirming the interrupt-driven UART command path and the
 pause/resume logic both work correctly under real use — including the
