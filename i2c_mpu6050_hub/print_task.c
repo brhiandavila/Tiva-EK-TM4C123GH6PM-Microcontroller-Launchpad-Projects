@@ -34,7 +34,7 @@ void vSensorPrintTask(void *pvParameters)
             vUARTPrint(pxParams->xUARTMutex,
                        "[%6ums] AX:%6d AY:%6d AZ:%6d | "
                        "GX:%6d GY:%6d GZ:%6d | T:%d.%dC\r\n",
-                       (uint32_t)(xTaskGetTickCount()),
+                       xData.timestamp_ms,
                        xData.accel_x, xData.accel_y, xData.accel_z,
                        xData.gyro_x,  xData.gyro_y,  xData.gyro_z,
                        iTempWhole, iTempDecimal);

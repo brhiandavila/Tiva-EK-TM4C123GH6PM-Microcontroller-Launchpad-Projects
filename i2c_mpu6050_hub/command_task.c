@@ -1,8 +1,10 @@
 /*
  * command_task.c
  *
- * Polls UART0 for single character commands from a terminal.
- * UARTCharGet blocks until a character arrives — no ISR needed.
+ * Receives single character commands via UART0 RX interrupt.
+ * UART0IntHandler notifies this task with the received byte using
+ * a direct task notification — the task blocks on xTaskNotifyWait()
+ * until a byte arrives, consuming no CPU while idle.
  * Supported commands:
  *   'P' or 'p' — pause sensor reading
  *   'R' or 'r' — resume sensor reading
@@ -27,17 +29,23 @@ void vCommandTask(void *pvParameters)
 
     for (;;)
     {
+        uint32_t ulNotifiedByte;
+        xTaskNotifyWait(0x00,              /* don't clear any bits on entry */
+                        0xFFFFFFFF,        /* clear all bits on exit */
+                        &ulNotifiedByte,   /* the byte the ISR sent */
+                        portMAX_DELAY);    /* block forever until notified */
+
         /* Poll for a character — block here until one arrives.
          * UARTCharGet blocks until a character is available.
          * This is safe because the command task has nothing else to do
          * while waiting for input. */
-        cCommand = (char)UARTCharGet(UART0_BASE);
+        cCommand = (char)ulNotifiedByte;
 
-        switch (cCommand)
+        switch(cCommand)
         {
             case 'P':
             case 'p':
-                if (!bSensorPaused)
+                if(!bSensorPaused)
                 {
                     bSensorPaused = true;
                     vUARTPrint(pxParams->xUARTMutex,
@@ -52,7 +60,7 @@ void vCommandTask(void *pvParameters)
 
             case 'R':
             case 'r':
-                if (bSensorPaused)
+                if(bSensorPaused)
                 {
                     bSensorPaused = false;
                     vUARTPrint(pxParams->xUARTMutex,

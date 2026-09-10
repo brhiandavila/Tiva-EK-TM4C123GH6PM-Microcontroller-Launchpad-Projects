@@ -13,8 +13,8 @@
 #include "queue.h"
 
 typedef struct {
-    QueueHandle_t     xQueue;       /* Receives sensor data from here    */
-    SemaphoreHandle_t xUARTMutex;   /* Protects UART during print        */
+    QueueHandle_t     xQueue;       /* Receives sensor data from here */
+    SemaphoreHandle_t xUARTMutex;   /* Protects UART during print     */
 } PrintTaskParams_t;
 
 void vSensorPrintTask(void *pvParameters);

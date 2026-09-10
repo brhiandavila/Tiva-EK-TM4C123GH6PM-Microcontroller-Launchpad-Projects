@@ -1,25 +1,26 @@
 /*
  * i2c_mpu6050_hub
  *
- * Project 6 -- MPU6050 over I2C with FreeRTOS
- * TM4C123GH6PM @ 80 MHz
+ * MPU6050 (accelerometer/gyro/temp) over I2C with FreeRTOS.
+ * TM4C123GH6PM @ 80 MHz.
  *
  * Architecture:
  *   Software Timer (100ms) -> Counting Semaphore -> vSensorReadTask
  *   vSensorReadTask -> Queue -> vSensorPrintTask
- *   UART polling -> vCommandTask
+ *   UART0 RX Interrupt -> Task Notification -> vCommandTask
  *
- * Project 6 change vs Project 5:
- *   i2c_driver.c refactored from polling to interrupt driven.
- *   I2C transactions now block the calling task via binary semaphore
- *   instead of spinning on I2CMasterBusy(). The scheduler must be
- *   running before any I2C transaction can occur -- therefore sensor
- *   verification moves into vStartupTask instead of main().
+ * I2C transactions are fully interrupt driven: the calling task blocks
+ * on a binary semaphore until the ISR signals completion, rather than
+ * polling a busy flag. This means the scheduler must already be running
+ * before any I2C transaction can occur -- so sensor verification happens
+ * in vStartupTask (after vTaskStartScheduler()) rather than in main().
  */
 
+/* Standard includes. */
 #include <stdint.h>
 #include <stdbool.h>
 
+/* Task/Driver Includes */
 #include "sensor_task.h"
 #include "print_task.h"
 #include "command_task.h"
@@ -27,12 +28,14 @@
 #include "i2c_driver.h"
 #include "mpu6050.h"
 
+/* Kernel includes. */
 #include "FreeRTOS.h"
 #include "task.h"
 #include "semphr.h"
 #include "queue.h"
 #include "timers.h"
 
+/* Hardware includes. */
 #include "inc/hw_memmap.h"
 #include "inc/hw_sysctl.h"
 #include "driverlib/interrupt.h"
@@ -59,8 +62,8 @@ static CommandTaskParams_t xCommandParams;
  *--------------------------------------------------------------------------*/
 static void prvSetupHardware(void);
 static void prvInitProject(void);
-static void vSensorTimerCallback(TimerHandle_t xTimer);
-static void vStartupTask(void *pvParameters);
+static void prvSensorTimerCallback(TimerHandle_t xTimer);
+static void prvStartupTask(void *pvParameters);
 
 extern void vSensorReadTask(void *pvParameters);
 extern void vSensorPrintTask(void *pvParameters);
@@ -101,14 +104,14 @@ static void prvSetupHardware(void)
 static void prvInitProject(void)
 {
     /* Primitives */
-    xUARTMutex = xSemaphoreCreateMutex();
-    configASSERT(xUARTMutex != NULL);
-
     xSensorSemaphore = xSemaphoreCreateCounting(4, 0);
     configASSERT(xSensorSemaphore != NULL);
 
     xSensorQueue = xQueueCreate(5, sizeof(MPU6050_Data_t));
     configASSERT(xSensorQueue != NULL);
+
+    xUARTMutex = xSemaphoreCreateMutex();
+    configASSERT(xUARTMutex != NULL);
 
     /* Parameter structs */
     xSensorParams.xSemaphore = xSensorSemaphore;
@@ -123,7 +126,7 @@ static void prvInitProject(void)
     /* Startup task -- priority 4, highest in the system.
      * Runs first after scheduler starts. Verifies sensor then
      * starts the timer and deletes itself. */
-    xTaskCreate(vStartupTask,
+    xTaskCreate(prvStartupTask,
                 "Startup",
                 configMINIMAL_STACK_SIZE * 2,
                 NULL,
@@ -146,13 +149,17 @@ static void prvInitProject(void)
                 NULL);
 
     TaskHandle_t xCommandTaskHandle = NULL;
+
     xTaskCreate(vCommandTask,
                 "Command",
                 configMINIMAL_STACK_SIZE * 2,
                 &xCommandParams,
                 1,
                 &xCommandTaskHandle);
+
     configASSERT(xCommandTaskHandle != NULL);
+
+    vUARTSetCommandTask(xCommandTaskHandle);
 
     /* Timer created but NOT started here.
      * vStartupTask starts it after sensor is confirmed alive. */
@@ -160,12 +167,13 @@ static void prvInitProject(void)
                                 pdMS_TO_TICKS(100),
                                 pdTRUE,
                                 NULL,
-                                vSensorTimerCallback);
+                                prvSensorTimerCallback);
+
     configASSERT(xSensorTimer != NULL);
 }
 
 /*---------------------------------------------------------------------------
- * vStartupTask
+ * prvStartupTask
  *
  * Runs once after scheduler starts. Verifies MPU6050 is alive using
  * the interrupt driven I2C driver -- safe here because scheduler is
@@ -174,7 +182,7 @@ static void prvInitProject(void)
  * Starts the sensor timer only after hardware is confirmed working.
  * Deletes itself when done -- no resources wasted after startup.
  *--------------------------------------------------------------------------*/
-static void vStartupTask(void *pvParameters)
+static void prvStartupTask(void *pvParameters)
 {
     (void)pvParameters;
 
@@ -201,12 +209,15 @@ static void vStartupTask(void *pvParameters)
 }
 
 /*---------------------------------------------------------------------------
- * vSensorTimerCallback
+ * prvSensorTimerCallback
  *--------------------------------------------------------------------------*/
-static void vSensorTimerCallback(TimerHandle_t xTimer)
+static void prvSensorTimerCallback(TimerHandle_t xTimer)
 {
     (void)xTimer;
-    xSemaphoreGive(xSensorSemaphore);
+    if(!bSensorPaused)
+    {
+        xSemaphoreGive(xSensorSemaphore);
+    }
 }
 
 /*---------------------------------------------------------------------------

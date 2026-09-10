@@ -1,14 +1,11 @@
 /*
- * i2c_driver.c -- Project 6
+ * i2c_driver.c
  *
  * TM4C123 I2C0 -- PB2 (SCL), PB3 (SDA), 400 kHz Fast Mode
  *
- * Project 6 change: fully interrupt driven.
- * Polling loop i2cWaitForBus() is replaced by a binary semaphore.
- * The calling task blocks on xSemaphoreTake() and is unblocked
- * by the ISR via xSemaphoreGiveFromISR() when the transaction ends.
- *
- * Public API is identical to Project 5 -- no other files change.
+ * Fully interrupt driven. The calling task blocks on a binary
+ * semaphore (xSemaphoreTake()) and is unblocked by the ISR via
+ * xSemaphoreGiveFromISR() when the transaction completes.
  */
 
 #include "i2c_driver.h"
@@ -110,7 +107,7 @@ static bool i2cRunTransaction(void)
 
         MAP_I2CMasterSlaveAddrSet(I2C0_BASE, gContext.slaveAddr, false);
         MAP_I2CMasterDataPut(I2C0_BASE, gContext.regAddr);
-        MAP_I2CMasterControl(I2C0_BASE, I2C_MASTER_CMD_SINGLE_SEND);
+        MAP_I2CMasterControl(I2C0_BASE, I2C_MASTER_CMD_BURST_SEND_START);
     }
     else
     {

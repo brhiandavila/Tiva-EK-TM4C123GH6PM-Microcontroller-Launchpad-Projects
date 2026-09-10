@@ -50,4 +50,6 @@ void vUARTPrint(SemaphoreHandle_t xMutex,
  *--------------------------------------------------------------------------*/
 void vUARTSetCommandTask(TaskHandle_t xTaskToNotify);
 
+void UART0IntHandler(void);
+
 #endif /* UART_DRIVER_H */

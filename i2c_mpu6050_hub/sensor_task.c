@@ -25,9 +25,10 @@ void vSensorReadTask(void *pvParameters)
     {
         /* If paused, block for 50ms at a time instead of spinning.
          * This yields the CPU so command task can process R command.
-         * We do NOT take the semaphore while paused — this prevents
-         *   the counting semaphore from accumulating a backlog while
-         *   the sensor is paused. When resumed, we start fresh. */
+         * Skip taking the semaphore while paused. This works correctly
+         * because prvSensorTimerCallback() (main.c) also checks
+         * bSensorPaused before giving — so no tokens accumulate on
+         * either side during a pause. */
         if (bSensorPaused)
         {
             vTaskDelay(pdMS_TO_TICKS(50));
@@ -37,11 +38,9 @@ void vSensorReadTask(void *pvParameters)
         /* Only take semaphore when not paused */
         xSemaphoreTake(pxParams->xSemaphore, portMAX_DELAY);
 
-        /* Read sensor and send to queue */
-        xData.timestamp_ms = (uint32_t)(xTaskGetTickCount());
-
         if (MPU6050_readAll(&xData))
         {
+            xData.timestamp_ms = (uint32_t)(xTaskGetTickCount()); /* Read sensor and send to queue */
             xQueueSend(pxParams->xQueue, &xData, 0);
         }
         else

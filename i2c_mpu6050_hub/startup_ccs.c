@@ -76,6 +76,7 @@ extern void xPortPendSVHandler(void);
 extern void vPortSVCHandler(void);
 extern void xPortSysTickHandler(void);
 extern void I2C0IntHandler(void);      /* I2C0 interrupt driven driver */
+extern void UART0IntHandler(void);
 
 //*****************************************************************************
 //
@@ -109,7 +110,7 @@ void (* const g_pfnVectors[])(void) =
     IntDefaultHandler,                      // GPIO Port C
     IntDefaultHandler,                      // GPIO Port D
     IntDefaultHandler,                      // GPIO Port E
-    IntDefaultHandler,                      // UART0 Rx and Tx
+    UART0IntHandler,                        // UART0 Rx and Tx
     IntDefaultHandler,                      // UART1 Rx and Tx
     IntDefaultHandler,                      // SSI0 Rx and Tx
     I2C0IntHandler,                         // I2C0 Master and Slave

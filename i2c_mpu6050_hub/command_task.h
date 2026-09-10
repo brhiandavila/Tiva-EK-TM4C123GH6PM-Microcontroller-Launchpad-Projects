@@ -13,7 +13,7 @@
 #include "semphr.h"
 
 typedef struct {
-    SemaphoreHandle_t xUARTMutex;   /* For printing command responses     */
+    SemaphoreHandle_t xUARTMutex;   /* For printing command responses */
 } CommandTaskParams_t;
 
 void vCommandTask(void *pvParameters);

@@ -34,8 +34,8 @@ void I2C_init(void);
  *
  * Returns true on success, false if the bus reported an error.
  *
- * PITFALL: Never call this from an ISR. I2C transactions are blocking
- *   (polling-based). In a later step we protect this with a mutex.
+ * PITFALL: Never call this from an ISR. This function blocks on a
+ * FreeRTOS semaphore, which requires task context to resolve.
  *--------------------------------------------------------------------------*/
 bool I2C_writeByte(uint8_t slaveAddr, uint8_t regAddr, uint8_t data);
 

@@ -40,9 +40,8 @@ typedef struct {
     int16_t  gyro_y;
     int16_t  gyro_z;
     int16_t  raw_temp;        /* °C = (raw_temp / 340.0f) + 36.53f         */
-    uint32_t timestamp_ms;    /* Populated by caller via xTaskGetTickCount  */
+    uint32_t timestamp_ms;    /* Populated by caller via xTaskGetTickCount */
 } MPU6050_Data_t;
-
 
 /*---------------------------------------------------------------------------
  * MPU6050_whoAmI

@@ -24,9 +24,9 @@ extern volatile bool bSensorPaused;
  * Contains exactly what this task needs — nothing more.
  *--------------------------------------------------------------------------*/
 typedef struct {
-    SemaphoreHandle_t xSemaphore;   /* Counting semaphore from timer     */
-    QueueHandle_t     xQueue;       /* Queue to send sensor data into     */
-    SemaphoreHandle_t xUARTMutex;   /* For error printing only            */
+    SemaphoreHandle_t xSemaphore;   /* Counting semaphore from timer  */
+    QueueHandle_t     xQueue;       /* Queue to send sensor data into */
+    SemaphoreHandle_t xUARTMutex;   /* For error printing only        */
 } SensorTaskParams_t;
 
 /*---------------------------------------------------------------------------

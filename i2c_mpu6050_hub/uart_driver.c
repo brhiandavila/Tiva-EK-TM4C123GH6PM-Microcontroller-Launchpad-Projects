@@ -2,7 +2,7 @@
  * uart_driver.c
  *
  * UART0 — PA0 (RX), PA1 (TX), 115200 8-N-1
- * Thread-safe print via mutex.
+ * Thread-safe print via mutex and UART RX interrupt.
  * Commands received via UARTCharGet polling in vCommandTask.
  */
 
@@ -13,16 +13,23 @@
 #include <stdint.h>
 
 #include "inc/hw_memmap.h"
+#include "inc/hw_ints.h"
 #include "driverlib/gpio.h"
 #include "driverlib/pin_map.h"
 #include "driverlib/sysctl.h"
 #include "driverlib/uart.h"
 #include "driverlib/rom_map.h"
+#include "driverlib/interrupt.h"
 #include "utils/uartstdio.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
 #include "semphr.h"
+
+/* Registered via vUARTSetCommandTask(); the ISR notifies this task
+ * when a byte arrives. Distinct from the local variable of the same
+ * name in main.c, which only exists to pass the handle here. */
+static TaskHandle_t xCommandTaskHandle = NULL;
 
 /*---------------------------------------------------------------------------
  * vUARTDriverInit
@@ -51,6 +58,16 @@ void vUARTDriverInit(void)
 
     /* Initialize UART stdio at 115200 baud using 16 MHz clock */
     UARTStdioConfig(0, 115200, 16000000);
+
+    /* Enable UART0 RX interrupt and RX timeout — RT is required so a single
+     * byte sitting in the FIFO below the trigger level still gets delivered
+     * once the line goes idle, rather than waiting for more bytes to arrive. */
+    MAP_UARTIntEnable(UART0_BASE, UART_INT_RX | UART_INT_RT);
+
+    /* Priority must be numerically >= configMAX_SYSCALL_INTERRUPT_PRIORITY (0xA0),
+     * same rule as I2C0 — this ISR calls xTaskNotifyFromISR. */
+    MAP_IntPrioritySet(INT_UART0, 0xA0);
+    MAP_IntEnable(INT_UART0);
 }
 
 /*---------------------------------------------------------------------------
@@ -67,7 +84,7 @@ void vUARTPrint(SemaphoreHandle_t xMutex, const char *pcFormat, ...)
 {
     va_list vaArgs;
 
-    if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE)
+    if(xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE)
     {
         va_start(vaArgs, pcFormat);
         UARTvprintf(pcFormat, vaArgs);
@@ -75,4 +92,35 @@ void vUARTPrint(SemaphoreHandle_t xMutex, const char *pcFormat, ...)
 
         xSemaphoreGive(xMutex);
     }
+}
+
+void vUARTSetCommandTask(TaskHandle_t xTaskToNotify)
+{
+    xCommandTaskHandle = xTaskToNotify;
+}
+
+void UART0IntHandler(void){
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    uint32_t ui32Status;
+
+    /* Clear interrupt flag first */
+    ui32Status = MAP_UARTIntStatus(UART0_BASE, true);
+    MAP_UARTIntClear(UART0_BASE, ui32Status);
+
+    /* Drain all available bytes — RX interrupt can fire with more
+     * than one byte waiting in the FIFO */
+    while(MAP_UARTCharsAvail(UART0_BASE))
+    {
+        uint8_t ucByte = (uint8_t)MAP_UARTCharGetNonBlocking(UART0_BASE);
+
+        if(xCommandTaskHandle != NULL)
+        {
+            xTaskNotifyFromISR(xCommandTaskHandle,
+                               (uint32_t)ucByte,
+                               eSetValueWithOverwrite,
+                               &xHigherPriorityTaskWoken);
+        }
+    }
+
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
