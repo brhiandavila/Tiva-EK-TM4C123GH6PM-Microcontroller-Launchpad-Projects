@@ -127,7 +127,7 @@ further to protect once the data byte is sent.*
   4 during any pause longer than ~400ms. On resume, the read task would
   immediately succeed on four back-to-back takes, producing a burst of
   four rapid sensor reads before settling back into the normal 100ms
-  rythm, rather than the clean, gap-free resume the design intended.
+  rhythm, rather than the clean, gap-free resume the design intended.
   Fixed by having `prvSensorTimerCallback` itself check `bSensorPaused`
   before giving, so no tokens accumulate on either side of a pause.
 
