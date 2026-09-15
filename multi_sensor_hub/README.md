@@ -1,7 +1,8 @@
 # Multi Sensor Hub
 
 A FreeRTOS-based multi-sensor acquisition pipeline on the TM4C123GH6PM. Two
-independent ADC producer tasks - a potentiometer and the TM4C's itnernal die temperature sensor - each sample on a fixed period and signal a FreeRTOS
+independent ADC producer tasks - a potentiometer and the TM4C's internal die
+temperature sensor - each sample on a fixed period and signal a FreeRTOS
 event group. A single processing task blocks until both readings are
 available, converts the temperature to Celsius, and logs both values over
 UART, with access to UART serialized by a mutex.
@@ -21,8 +22,8 @@ UART, with access to UART serialized by a mutex.
   `malloc()`
 - Debugging GPIO instrumentation added specifically to make an internal
   synchronization primitive (the event group) externally observable on a
-  logic analizer - including catching a real task-priority preemption effect
-  in the process (see Deisgn notes below)
+  logic analyzer - including catching a real task-priority preemption effect
+  in the process (see Design notes below)
 
 ## Architecture
 Two independent producer tasks each sample their own ADC sequencer on a
@@ -54,15 +55,15 @@ prove.
 outer legs to 3.3V and GND
 - **Temperature sensor**: none external - uses the TM4C123's internal die
 temperature sensor (ADC0, `ADC_CTL_TS`)
-- **UART**: UART0 on PA0 (TX) / PA1 (TX), 115200 8-N-1
+- **UART**: UART0 on PA0 (RX) / PA1 (TX), 115200 8-N-1
 - **Debug/verification pins (PC4-PC6)**: added solely to make the event
 group's internal synchronization visible on a logic analyzer (Digilent
-Analog DIscovery 2/ WaveForms), since tehre's no external pin activity to
+Analog Discovery 2/WaveForms), since tehre's no external pin activity to
 probe otherwise. These mirror existing task events that are not part of
 the project's core functionality:
 - PC4 (DIO0) - potentiometer sample event pulse
 - PC5 (DIO1) - temperature sample event pulse
-- PC6 (DIO2) - processing task active (high for the diration of the
+- PC6 (DIO2) - processing task active (high for the duration of the
 conversion + UART print)
 
 ## Verified behavior
