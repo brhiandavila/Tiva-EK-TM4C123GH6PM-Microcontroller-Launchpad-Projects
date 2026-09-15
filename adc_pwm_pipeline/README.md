@@ -49,7 +49,7 @@ the other task sees.
 - **Board:** TM4C123GXL Launchpad (TM4C123GH6PM)
 - **Potentiometer:** external 10k potentiometer, wiper on PE3 (ADC0 AIN0),
   outer legs to 3.3V and GND
-- **LED:** external LED with a current-limiting resitor (220Ω), anode to PB0
+- **LED:** external LED with a current-limiting resistor (220Ω), anode to PB0
   (Timer2A/CCP0 PWM output), cathode to GND - not the onboard LaunchPad
   LED, since PB0 isn't one of its pins
 - **UART:** UART0 on PA0 (RX) / PA1 (TX), 115200 8-N-1
