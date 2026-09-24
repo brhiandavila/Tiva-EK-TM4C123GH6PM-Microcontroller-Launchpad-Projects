@@ -196,17 +196,20 @@ own receive lines.*
 
 ### UART logs
 ![PID convergence](docs/putty_pid_convergence.png)
+
 *Speed settling to within 1 count of the 45-count/10ms target, PWM duty
 cycle converged and stable at 9-10%, after the derivative term was added
 and filtered.*
 
 ![CAN bidirectional, TM4C side](docs/putty_can_bidirectional_tm4c.png)
 ![CAN bidirectional, STM32 side](docs/putty_can_bidirectional_stm32.png)
+
 *Both terminals during simultaneous operation, the TM4C transmitting
 telemetry and receiving heartbeats, the STM32 receiving and decoding that
 same telemetry independently.*
 
 ![Pause/resume command interface](docs/putty_pause_resume_command.png)
+
 *`P`/`R`/`?` correctly muting and restoring routine status output.*
 
 ## Design notes / known limitations
