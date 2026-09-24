@@ -9,6 +9,7 @@ typedef struct{
     float kd;        // derivative gain;
     float integral;  // accumulated error
     float prevError; // previous error for derivative
+    float filteredDerivative; // low-pass filtered derivative term
 } PID_t;
 
 void PID_Init(void);

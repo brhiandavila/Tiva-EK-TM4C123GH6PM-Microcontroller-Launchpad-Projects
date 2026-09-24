@@ -1,55 +1,29 @@
-/*
- * timer_hw_pwm
- *
- * Copyright (C) 2022 Texas Instruments Incorporated
- * 
- * 
- *  Redistribution and use in source and binary forms, with or without 
- *  modification, are permitted provided that the following conditions 
- *  are met:
- *
- *    Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer.
- *
- *    Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the   
- *    distribution.
- *
- *    Neither the name of Texas Instruments Incorporated nor the names of
- *    its contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
- *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
- *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
- *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
- *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
- *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
- *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
- *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
-*/
-
 /******************************************************************************
  *
- * This project provides a simple demonstration on how to use a hardware timer
- * on the TM4C123GH6PM with the FreeRTOS kernel.  The timer will be configured
- * as a split timer for PWM mode and output two different PWM signals. The UART
- * terminal is configured with the prvConfigureUART() function.
+ * This project implements a closed-loop DC motor speed controller on the
+ * TM4C123GH6PM using the FreeRTOS kernel.
  *
- * main() creates one task.  It then starts the scheduler.
+ * Motor speed is measured via a quadrature encoder (QEI0, velocity-capture
+ * mode) and regulated by a PI(D) control loop against a fixed target,
+ * driving a DRV8833 motor driver through hardware PWM (PWM0, Generator 2).
  *
- * The Hardware Timer task configures the Timer 2 peripheral to be a split pair
- * and load two different PWM periods based on defined values.  It then loads
- * the duty cycles and starts the timers.
+ * An INA260 current/voltage/power monitor and TMP117 temperature sensor are
+ * sampled over a fully interrupt-driven I2C0 master driver. The motor
+ * latches into a safe stopped state if either reading exceeds a configured
+ * overcurrent or overtemperature threshold.
  *
- * This example uses UARTprintf for output of UART messages.  UARTprintf is not
- * a thread-safe API and is only being used for simplicity of the demonstration
- * and in a controlled manner.
+ * Speed and current telemetry is broadcast over CAN0 (500kbit/s) to a
+ * second, independent node, which also transmits its own periodic
+ * heartbeat frame back onto the same bus.
+ *
+ * main() brings up all hardware peripherals before starting the scheduler,
+ * then creates four tasks: sensor acquisition, motor control, CAN
+ * communication, and a UART command interface (P/R/? to pause, resume, or
+ * query routine status output).
+ *
+ * This example uses UARTprintf for output of UART messages. UARTprintf is
+ * not a thread-safe API, all UART output in this project is routed through
+ * a mutex-protected wrapper (UART_Print()) rather than called directly.
  *
  * Open a terminal with 115,200 8-N-1 to see the output for this demo.
  *
@@ -65,7 +39,11 @@
 #include "drv8833.h"
 #include "sensors.h"
 #include "can_task.h"
+#include "cmd_task.h"
 #include "uart_mutex.h"
+#include "i2c_driver.h"
+#include "encoder.h"
+#include "pid.h"
 
 /* Kernel includes. */
 #include "FreeRTOS.h"
@@ -105,14 +83,18 @@ int main(void)
     I2C_Init();
     CAN_Init();
     DRV8833_Init();
+    CMD_UART0RxInit();
+    Encoder_Init();
+    PID_Init();
 
     xUARTMutex = xSemaphoreCreateMutex();
+    if(xUARTMutex == NULL)
+        for(;;);
 
     UART_Print("main started\r\n");
 
-    xSensorQueue = xQueueCreate(5, sizeof(SensorData_t));
-
-    if(xSensorQueue == NULL)
+    xSensorQueue = xQueueCreate(1, sizeof(SensorData_t));
+    if(xSensorQueue == NULL || xUARTMutex == NULL)
         for(;;);
 
     xTaskCreate(vSensorTask,
@@ -131,6 +113,13 @@ int main(void)
 
     xTaskCreate(vCANTask,
                 "CAN",
+                256,
+                NULL,
+                1,
+                NULL);
+
+    xTaskCreate(vCommandTask,
+                "Command",
                 256,
                 NULL,
                 1,
@@ -163,6 +152,9 @@ void prvConfigureUART(void)
      * TODO: change this to whichever GPIO port you are using. */
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
 
+    /* Wait until hardware peripheral is ready. */
+    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOA));
+
     /* Configure the pin muxing for UART0 functions on port A0 and A1.
      * This step is not necessary if your part does not support pin muxing.
      * TODO: change this to select the port/pin you are using. */
@@ -172,12 +164,15 @@ void prvConfigureUART(void)
     /* Enable UART0 so that we can configure the clock. */
     SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
 
-    /* Use the internal 16MHz oscillator as the UART clock source. */
-    UARTClockSourceSet(UART0_BASE, UART_CLOCK_PIOSC);
+    /* Wait until hardware peripheral is ready. */
+    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_UART0));
 
     /* Select the alternate (UART) function for these pins.
      * TODO: change this to select the port/pin you are using. */
     GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
+
+    /* Use the internal 16MHz oscillator as the UART clock source. */
+    UARTClockSourceSet(UART0_BASE, UART_CLOCK_PIOSC);
 
     /* Initialize the UART for console I/O. */
     UARTStdioConfig(0, 115200, 16000000);

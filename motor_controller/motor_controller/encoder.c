@@ -28,7 +28,7 @@ void Encoder_Init(void){
     GPIOPinTypeQEI(GPIO_PORTD_BASE, GPIO_PIN_6 | GPIO_PIN_7);
 
     // 4294967295 is the maximum uint32 value since I am using velocity mode, not position mode
-    QEIConfigure(QEI0_BASE, (QEI_CONFIG_CAPTURE_A_B | QEI_CONFIG_NO_RESET | QEI_CONFIG_QUADRATURE | QEI_CONFIG_NO_SWAP), 4294967295);
+    QEIConfigure(QEI0_BASE, (QEI_CONFIG_CAPTURE_A_B | QEI_CONFIG_NO_RESET | QEI_CONFIG_QUADRATURE | QEI_CONFIG_SWAP), 4294967295);
 
     // window duration = ticks / system clock
     //                 = 800,000 / 80,000,000

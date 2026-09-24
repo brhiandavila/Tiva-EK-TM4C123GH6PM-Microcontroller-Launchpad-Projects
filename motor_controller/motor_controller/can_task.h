@@ -2,6 +2,7 @@
 #define CAN_TASK_H
 
 void CAN_Init(void);
+void CAN0IntHandler(void);
 void vCANTask(void *pvParameters);
 
 #endif // CAN_TASK_H

@@ -28,6 +28,7 @@
 #include "driverlib/pin_map.h"
 #include "driverlib/rom.h"
 #include "driverlib/rom_map.h"
+
 #include "drv8833.h"
 
 void DRV8833_Init(void){
@@ -59,6 +60,15 @@ void DRV8833_Init(void){
 
 void DRV8833_SetMotor(int32_t speed){
     uint32_t pulse;
+
+    /* Defensive clamp. motor_task.c already restricts speed to 5-25,
+     * but this function drives real motor hardware directly, so it
+     * clamps its own input rather than trusting every future caller
+     * to have done so first. */
+    if(speed > 100)
+        speed = 100;
+    if(speed < -100)
+        speed = -100;
 
     if(speed > 0){
         // forward
