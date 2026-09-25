@@ -28,14 +28,14 @@ detected an event* from *who handles it*. One consumer task
 (`prvEventHandlerTask`) blocks on `xQueueReceive(..., portMAX_DELAY)`,
 consuming no CPU while idle. When an event arrives, it increments a
 per-event counter, pulses the corresponding onboard LED, and prints a
-timestamped status line to UART — with access to UART serialized by a
+timestamped status line to UART, with access to UART serialized by a
 mutex (`xUARTMutex`) to prevent interleaved output if extended to
 multiple printing tasks in the future.
 
 ## Hardware setup
 - **Board**: TM4C123GXL Launchpad (TM4C123GH6PM)
 - **SW1 / SW2**: onboard buttons (PF4 / PF0)
-- **RGB LED**: onboard LED (PF1 / PF2 / PF3 — red / blue / green)
+- **RGB LED**: onboard LED (PF1 / PF2 / PF3, red / blue / green)
 - **UART**: UART0 on PA0 (RX) / PA1 (TX), 115200 8-N-1
 - **Debug/verification pins (PC4–PC7)**: added solely to make internal
   timing visible on a logic analyzer, since the onboard button/LED pins
@@ -54,21 +54,21 @@ falling edge once the event finishes processing, confirming the debounce
 and ISR-to-task path work as designed.
 
 ![SW1 press pulse](docs/sw1_debounced_pulse.png)
-*PC4 (SW1) — rising edge on press, falling edge once `prvEventHandlerTask`
+*PC4 (SW1), rising edge on press, falling edge once `prvEventHandlerTask`
 finishes handling the event.*
 
 ![SW2 press pulse](docs/sw2_debounced_pulse.png)
-*PC5 (SW2) — same behavior, independent button.*
+*PC5 (SW2), same behavior, independent button.*
 
 ### LED and timer events
 ![LED active pulse](docs/led_active_pulse.png)
 
 
-*PC6 — pulses high for the duration of `LED_PULSE_MS` (200ms) each time
+*PC6, pulses high for the duration of `LED_PULSE_MS` (200ms) each time
 any event is handled.*
 
 ![Timer event pulse](docs/timer_event_pulse.png)
-*PC7 — pulses the moment `EVENT_TIMER` is handled, firing independently
+*PC7, pulses the moment `EVENT_TIMER` is handled, firing independently
 of any button press.*
 
 ### UART event log
@@ -86,13 +86,13 @@ Timer fire ticks land exactly 5000 ticks apart (370000 → 375000 → 380000
   meant a single press would leave the pin stuck high indefinitely until
   another button interrupt happened to clear it. Fixed by moving the
   clear into `prvEventHandlerTask`, right after that event's handling
-  completes — tying the pin's state directly to the event's actual
+  completes, tying the pin's state directly to the event's actual
   lifetime instead of an unrelated future interrupt.
 
 - **Simultaneous button press edge case**: both SW1 and SW2 share the
   same GPIO interrupt (`INT_GPIOF`) and are resolved with an `if/else`
   in `xButtonsHandler`. If both buttons were pressed at the exact same
-  instant, only `EVENT_SW1` would be generated — `EVENT_SW2` would be
+  instant, only `EVENT_SW1` would be generated, `EVENT_SW2` would be
   silently dropped for that interrupt. Not a practical concern for human
   button presses, but a real limitation of the current logic.
 
@@ -105,7 +105,7 @@ Timer fire ticks land exactly 5000 ticks apart (370000 → 375000 → 380000
 - **Static allocation only**: the standard `malloc()` is intentionally
   trapped to halt execution if called, since the project relies entirely
   on FreeRTOS's own heap (`pvPortMalloc`) for all task/queue/timer
-  creation — a deliberate fail-loud safety pattern rather than an
+  creation, a deliberate fail-loud safety pattern rather than an
   oversight.
 
 ## How to build / run
@@ -116,7 +116,7 @@ Timer fire ticks land exactly 5000 ticks apart (370000 → 375000 → 380000
 **Prerequisites**:
 - CCS with TivaWare C Series installed
 - A local FreeRTOS source tree (this project was built against
-  FreeRTOS's TivaWare CCS port; not included in this repository —
+  FreeRTOS's TivaWare CCS port, not included in this repository,
   download from [freertos.org](https://www.freertos.org))
 
 1. Import this project folder into CCS as an existing project.
