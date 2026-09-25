@@ -1,8 +1,8 @@
 # Multi Sensor Hub
 
 A FreeRTOS-based multi-sensor acquisition pipeline on the TM4C123GH6PM. Two
-independent ADC producer tasks - a potentiometer and the TM4C's internal die
-temperature sensor - each sample on a fixed period and signal a FreeRTOS
+independent ADC producer tasks, a potentiometer and the TM4C's internal die
+temperature sensor, each sample on a fixed period and signal a FreeRTOS
 event group. A single processing task blocks until both readings are
 available, converts the temperature to Celsius, and logs both values over
 UART, with access to UART serialized by a mutex.
@@ -10,7 +10,7 @@ UART, with access to UART serialized by a mutex.
 ## What it demonstrates
 - Multi-producer synchronization via a FreeRTOS event group
   (`xEventGroupSetBits()` / `xEventGroupWaitBits` with a wait-for-all
-  pattern), rather than a queue - appropriate here since the consumer needs
+  pattern), rather than a queue, appropriate here since the consumer needs
   the latest value from each source, not a first-in-first-out stream of
   individual events
 - Dual ADC sequencer use on ADC0: sequencer 3 for an external analog input
@@ -22,7 +22,7 @@ UART, with access to UART serialized by a mutex.
   `malloc()`
 - Debugging GPIO instrumentation added specifically to make an internal
   synchronization primitive (the event group) externally observable on a
-  logic analyzer - including catching a real task-priority preemption effect
+  logic analyzer, including catching a real task-priority preemption effect
   in the process (see Design notes below)
 
 ## Architecture
@@ -36,7 +36,7 @@ fixed 500ms period:
   `EVENT_BIT_TEMP`.
 
 Both tasks run at the same priority and are not synchronized with each
-other - they simply sample and set their bit whenever their own 500ms
+other, they simply sample and set their bit whenever their own 500ms
 period elapses. `prvProcessingTask` (higher priority) blocks until both bits
 are set, consuming no CPU cycles while idle. Once both are set (cleared
 automatically on exit), it converts the raw temperature sample to Celsius
@@ -44,7 +44,7 @@ using the TM4C123's internal sensor transfer function, then takes `xMutex`
 to print both readings over UART0 in a single line.
 
 Because the two producer tasks are not phase-locked, the gap between "value
-A is fresh" and "value B is fresh" varies from cycle to cycle - the event
+A is fresh" and "value B is fresh" varies from cycle to cycle, the event
 group handles this correctly by waiting for whichever bit is slower to
 arrive, which is the behavior the debug pin captures below are meant to
 prove.
@@ -53,7 +53,7 @@ prove.
 - **Board**: TM4C123GXL Launchpad (TM4C123GH6PM)
 - **Potentiometer**: External 10k potentiometer, wiper on PE3 (ADC0 AIN0),
 outer legs to 3.3V and GND
-- **Temperature sensor**: none external - uses the TM4C123's internal die
+- **Temperature sensor**: none external, uses the TM4C123's internal die
 temperature sensor (ADC0, `ADC_CTL_TS`)
 - **UART**: UART0 on PA0 (RX) / PA1 (TX), 115200 8-N-1
 - **Debug/verification pins (PC4-PC6)**: added solely to make the event
@@ -76,12 +76,12 @@ readings, updating roughly every 500ms as both ADC sequencers complete.*
 
 ### Individual event pulses
 ![Potentiometer event pulse](docs/pot_event_pulse.png)
-*DIO0 (PC4), rising-edge triggered — a clean, few-microsecond-wide blip
+*DIO0 (PC4), rising-edge triggered, a clean, few-microsecond-wide blip
 corresponding to the single `xEventGroupSetBits()` call in
 `prvPotentiometerTask`.*
 
 ![Temperature event pulse](docs/temp_event_pulse.png)
-*DIO1 (PC5), rising-edge triggered — same short blip behavior as the
+*DIO1 (PC5), rising-edge triggered, same short blip behavior as the
 potentiometer pulse. This capture also caught the priority-preemption
 overlap with DIO2 described below.*
 
@@ -90,7 +90,7 @@ overlap with DIO2 described below.*
 *DIO1 (PC5) and DIO2 (PC6) briefly high together. The instant
 `prvTemperatureSensorTask` calls `xEventGroupSetBits()` and satisfies the
 wait condition, the higher-priority `prvProcessingTask` preempts it
-immediately — before the temperature task reaches its own `GPIOPinWrite()`
+immediately, before the temperature task reaches its own `GPIOPinWrite()`
 call to clear PC5. PC5 only drops once `prvProcessingTask` finishes and the
 temperature task resumes. Reproduced twice, confirming this is consistent,
 expected behavior rather than a one-off artifact.*
@@ -101,13 +101,13 @@ expected behavior rather than a one-off artifact.*
   (where multiple independent event occurrences funnel through a queue to
   be processed one at a time), this project's consumer needs the latest
   value from each of two ongoing streams, not a backlog of past samples. An
-  event group with a wait-for-ALL pattern is the better fit — it naturally
+  event group with a wait-for-ALL pattern is the better fit, it naturally
   discards stale bit state and only unblocks once both sources have
   reported fresh data.
 - **Task priority causes a brief, expected pin overlap**: because
   `prvProcessingTask` runs at a higher priority than the two producer
   tasks, it preempts a producer task mid-function the moment that producer's
-  `xEventGroupSetBits()` call satisfies the wait condition — before that
+  `xEventGroupSetBits()` call satisfies the wait condition, before that
   producer gets to execute its own pin-clear instruction. This means the
   producer's debug pin and the processing task's debug pin can briefly read
   high at the same time. It's a real, correct consequence of preemptive
@@ -119,19 +119,19 @@ expected behavior rather than a one-off artifact.*
   arrival order.
 - **UART mutex is shared but taken directly**: `prvProcessingTask` is
   currently the only task that ever prints, so the mutex isn't strictly
-  required today — it's included as correct practice in case the project
+  required today, it's included as correct practice in case the project
   is extended with another UART-printing source later.
 - **Static allocation only**: `malloc()` is intentionally trapped to halt
   execution if called, since the project relies entirely on FreeRTOS's own
-  heap (`pvPortMalloc`) for all task/event-group/semaphore creation — a
+  heap (`pvPortMalloc`) for all task/event-group/semaphore creation, a
   deliberate fail-loud safety pattern rather than an oversight.
 - **ADC completion is polled, not interrupt-driven (possible improvement)**:
   both producer tasks wait for their conversion to finish with a busy-wait
   loop on the ADC's raw interrupt status flag (`ADCIntStatus(..., false)`),
   rather than routing that flag to the NVIC and blocking on a semaphore or
   task notification. The flag itself (`ADCRIS`) is deliberately readable
-  this way — TI's datasheet documents polling it directly as a valid,
-  supported use — but doing so inside an RTOS task spends CPU cycles the
+  this way, TI's datasheet documents polling it directly as a valid,
+  supported use, but doing so inside an RTOS task spends CPU cycles the
   scheduler could otherwise give to other tasks while the conversion is in
   progress. A future revision would enable the ADC interrupt, register an
   ISR that gives a semaphore (or notifies the task directly), and have each
@@ -145,7 +145,7 @@ expected behavior rather than a one-off artifact.*
 **Prerequisites**:
 - CCS with TivaWare C Series installed
 - A local FreeRTOS source tree (this project was built against
-  FreeRTOS's TivaWare CCS port; not included in this repository —
+  FreeRTOS's TivaWare CCS port, not included in this repository,
   download from [freertos.org](https://www.freertos.org))
 
 1. Import this project folder into CCS as an existing project.
