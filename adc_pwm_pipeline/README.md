@@ -68,11 +68,11 @@ percentage updating every 2 seconds as the potentiometer is turned.*
 
 ### PWM duty cycle at low and high input
 ![PWM duty cycle, pot low](docs/pwm_duty_low.png)
-*PB0 with the potentiometer turned almost fully down — a short high-time each
+*PB0 with the potentiometer turned almost fully down, a short high-time each
 period (close to 0% duty cycle), captured directly on the PWM output pin.*
 
 ![PWM duty cycle, pot high](docs/pwm_duty_high.png)
-*PB0 with the potentiometer turned almost fully up — a long high-time each
+*PB0 with the potentiometer turned almost fully up, a long high-time each
 period (close to 100% duty cycle), confirming the ADC-to-PWM scaling responds
 correctly across the full input range.*
 
@@ -82,15 +82,15 @@ correctly across the full input range.*
   time this was built, a binary semaphore was the synchronization
   primitive that was understood well enough to apply confidently. In
   hindsight, since this is a single producer signaling a single specific
-  consumer task — exactly the same shape of problem solved with a direct
-  task notification in `led_blink_controller` — a notification would be
+  consumer task, exactly the same shape of problem solved with a direct
+  task notification in `led_blink_controller`, a notification would be
   the lighter-weight choice: no separate kernel object needs to be
   created, since the notification value already lives in every task's own
   TCB. The semaphore works correctly here and isn't a bug, just not the
   most efficient primitive available for this specific one-to-one
   relationship.
 - **Queue depth must be 1, not just "1 is sufficient"**: the queue was
-  originally sized at 5 with `xQueueOverwrite()`. This was a real bug —
+  originally sized at 5 with `xQueueOverwrite()`. This was a real bug,
   `xQueueOverwrite()` only replaces the last-written slot, while
   `xQueuePeek()` always reads from the front (oldest) slot. Once the
   queue filled past one entry, the "latest value" being overwritten and
@@ -115,7 +115,7 @@ correctly across the full input range.*
   elsewhere while the conversion is in progress.
 - **Static allocation only**: `malloc()` is intentionally trapped to halt
   execution if called, since the project relies entirely on FreeRTOS's
-  own heap (`pvPortMalloc`) for all task/queue/semaphore/mutex creation —
+  own heap (`pvPortMalloc`) for all task/queue/semaphore/mutex creation,
   a deliberate fail-loud safety pattern rather than an oversight.
 
 ## How to build / run
@@ -126,7 +126,7 @@ correctly across the full input range.*
 **Prerequisites**:
 - CCS with TivaWare C Series installed
 - A local FreeRTOS source tree (this project was built against
-  FreeRTOS's TivaWare CCS port; not included in this repository —
+  FreeRTOS's TivaWare CCS port, not included in this repository,
   download from [freertos.org](https://www.freertos.org))
 
 1. Import this project folder into CCS as an existing project.
