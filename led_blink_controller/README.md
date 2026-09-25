@@ -10,12 +10,12 @@ indefinitely waiting for a first value to arrive.
 
 ## What it demonstrates
 - ISR-to-task signaling via a **direct task notification**
-  (`vTaskNotifyGiveFromISR()` / `ulTaskNotifyTake()`) — FreeRTOS's
+  (`vTaskNotifyGiveFromISR()` / `ulTaskNotifyTake()`), FreeRTOS's
   lightest-weight synchronization primitive, using a task's built-in
   notification value instead of a separate semaphore object
 - A **non-blocking "latest value wins" queue pattern**: a 1-deep queue read
   with a zero timeout (`xQueueReceive(..., 0)`), so the consumer never
-  stalls waiting for a new value — it just checks in passing and keeps
+  stalls waiting for a new value, it just checks in passing and keeps
   using its last known rate if nothing's arrived
 - Hardware button debounce handled in ISR context via timestamp comparison
 - Correct use of `xHigherPriorityTaskWoken` / `portYIELD_FROM_ISR()` to
@@ -60,14 +60,14 @@ signals and are not part of the project's core functionality:
 
 ### Button press → rate change
 ![SW1 press pulse](docs/sw1_press_pulse.png)
-*PC4 (SW1) — pulses on each debounced press.*
+*PC4 (SW1), pulses on each debounced press.*
 
 ![SW2 press pulse](docs/sw2_press_pulse.png)
-*PC5 (SW2) — same behavior, independent button.*
+*PC5 (SW2), same behavior, independent button.*
 
 ### LED blink rate
 ![LED state pulse](docs/led_state_pulse.png)
-*PC6 mirrors the LED's actual on/off period — visually confirms the rate
+*PC6 mirrors the LED's actual on/off period, visually confirms the rate
 change takes effect on the very next toggle after a button press, not
 after some delay.*
 
@@ -83,7 +83,7 @@ button presses, cycling through fast, slow, and medium.*
   project is based on had SW1 speed up and SW2 slow down the blink rate.
   In this implementation, `xButtonsHandler` notifies `prvButtonTask` the
   same way regardless of which button fired, and `prvButtonTask` simply
-  advances to the next rate in a fixed cycle — so either button currently
+  advances to the next rate in a fixed cycle, so either button currently
   produces the same result. A future revision could branch on which
   button's status bit was set and cycle in opposite directions per button.
 - **Shared global variables without synchronization**: `g_ui32CurrentRate`
@@ -94,7 +94,7 @@ button presses, cycling through fast, slow, and medium.*
   particular 32-bit accesses are effectively atomic in practice, so the
   practical risk here is low, but it's still worth naming as the kind of
   pattern that becomes a real race condition on a more complex or
-  multi-core system — correct fixes would be a mutex or an atomic access
+  multi-core system, correct fixes would be a mutex or an atomic access
   pattern rather than a bare shared global.
 - **Non-blocking queue read is deliberate, not an oversight**:
   `prvLEDBlinkTask` reads `xBlinkRateQueue` with a zero timeout rather than
@@ -107,7 +107,7 @@ button presses, cycling through fast, slow, and medium.*
   pressed.
 - **Static allocation only**: `malloc()` is intentionally trapped to halt
   execution if called, since the project relies entirely on FreeRTOS's own
-  heap (`pvPortMalloc`) for all task/queue creation — a deliberate
+  heap (`pvPortMalloc`) for all task/queue creation, a deliberate
   fail-loud safety pattern rather than an oversight.
 
 ## How to build / run
@@ -118,7 +118,7 @@ button presses, cycling through fast, slow, and medium.*
 **Prerequisites**:
 - CCS with TivaWare C Series installed
 - A local FreeRTOS source tree (this project was built against
-  FreeRTOS's TivaWare CCS port; not included in this repository —
+  FreeRTOS's TivaWare CCS port, not included in this repository,
   download from [freertos.org](https://www.freertos.org))
 
 1. Import this project folder into CCS as an existing project.
