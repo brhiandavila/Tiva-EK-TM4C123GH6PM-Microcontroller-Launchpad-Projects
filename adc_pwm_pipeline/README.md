@@ -3,13 +3,13 @@
 A FreeRTOS-based producer/consumer/observer pipeline on the TM4C123GH6PM. A
 potentiometer is sampled on a fixed period and converted into LED brightness
 via hardware PWM, with a third task independently logging the pipeline's
-status over UART. Three different FreeRTOS primitives - a single-slot
-overwrite queue, a binary semaphore, and a mutex - each handle a distinct
+status over UART. Three different FreeRTOS primitives, a single-slot
+overwrite queue, a binary semaphore, and a mutex, each handle a distinct
 part of the coordination between tasks.
 
 ## What it demonstrates
 - **Precise periodic sampling** via `vTaskDelayUntil()` rather than
-  `vTaskDelay()` - guarantees a fixed 50ms sampling period regardless
+  `vTaskDelay()`, guarantees a fixed 50ms sampling period regardless
   of how long each sample actually takes to process, rather than
   drifting later each cycle
 - **Producer/consumer signaling via a binary semaphore,** distinct from
@@ -42,7 +42,7 @@ part of the coordination between tasks.
   both the raw ADC value and the percentage over UART, guarded by `xUartMutex`.
 
 Both prvPWMConsumerTask and prvUARTLoggerTask read from the same single-slot
-queue independently and non-destructively — neither task's read affects what
+queue independently and non-destructively, neither task's read affects what
 the other task sees.
 
 ## Hardware setup
@@ -50,12 +50,12 @@ the other task sees.
 - **Potentiometer:** external 10k potentiometer, wiper on PE3 (ADC0 AIN0),
   outer legs to 3.3V and GND
 - **LED:** external LED with a current-limiting resistor (220Ω), anode to PB0
-  (Timer2A/CCP0 PWM output), cathode to GND - not the onboard LaunchPad
+  (Timer2A/CCP0 PWM output), cathode to GND, not the onboard LaunchPad
   LED, since PB0 isn't one of its pins
 - **UART:** UART0 on PA0 (RX) / PA1 (TX), 115200 8-N-1
 - **No debug instrumentation pins used**: unlike the previous three projects
   mentioned, the signal being verified here (PB0's PWM output) is a real,
-  directly probable pin - no artificial GPIO mirroring was needed to make
+  directly probable pin, no artificial GPIO mirroring was needed to make
   internal behavior externally visible.
 
 ## Verified behavior
@@ -105,10 +105,10 @@ correctly across the full input range.*
   differently at this extreme: `ulBrightness = (3 * 100) / 4095` truncates
   to 0%, while `ulMatchValue = ulLoad - ((3 * ulLoad) / 4095)` leaves a
   few timer counts of nonzero on-time. The UART log reads a clean 0%
-  while the LED still shows a faint, real flicker — a genuine numerical
+  while the LED still shows a faint, real flicker, a genuine numerical
   edge case, not a hardware fault or an "imperfect potentiometer" issue.
 - **ADC completion is polled, not interrupt-driven**: same pattern as
-  `multi_sensor_hub` — `prvADCProducerTask` busy-waits on
+  `multi_sensor_hub`, `prvADCProducerTask` busy-waits on
   `ADCIntStatus(..., false)` rather than routing the ADC's interrupt to
   the NVIC and blocking on a semaphore or notification. Valid per the
   datasheet, but spends CPU cycles the scheduler could otherwise use
