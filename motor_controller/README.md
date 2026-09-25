@@ -100,7 +100,7 @@ Four TM4C tasks:
   `xQueueOverwrite()`.
 - **`vMotorTask`** (priority 3, highest, 10ms) — peeks the latest sensor
   reading, checks the latching overcurrent/overtemperature fault, and if
-  clear, runs the PI(D) loop against encoder-derived speed and commands
+  clear, runs the PID loop against encoder-derived speed and commands
   the DRV8833 via PWM.
 - **`vCANTask`** (priority 1, 100ms) — peeks the latest sensor reading,
   transmits speed + current telemetry on ID `0x001`, and non-blockingly
@@ -164,7 +164,7 @@ notes).*
 
 ### PWM — measured duty cycle matches the firmware's own claim
 ![PWM duty cycle steady state](docs/pwm_duty_cycle_steady_state.png)
-*`AIN1` (top) and `AIN2` (bottom) at the PI(D) loop's converged steady
+*`AIN1` (top) and `AIN2` (bottom) at the PID loop's converged steady
 state. Measured high time ≈90µs of a 1ms period ≈9% duty cycle,
 matching the UART log's own reported duty cycle at the same moment,
 software and hardware independently agreeing.*
