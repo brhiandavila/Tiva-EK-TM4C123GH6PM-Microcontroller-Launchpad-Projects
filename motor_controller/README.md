@@ -23,7 +23,7 @@ docs/                   Logic analyzer / oscilloscope / terminal captures
 
 - **A from-scratch, interrupt-driven I2C master driver**, rebuilt after the
   original implementation used `SINGLE_SEND` (a full STOP-then-restart) for
-  its register-address write phase — the same protocol-correctness bug
+  its register-address write phase, the same protocol-correctness bug
   found and fixed in `i2c_mpu6050_hub`. The rebuilt driver uses
   `I2C_MASTER_CMD_BURST_SEND_START` to hold the bus across a genuine
   repeated START, verified directly against a logic analyzer capture
@@ -49,7 +49,7 @@ docs/                   Logic analyzer / oscilloscope / terminal captures
   the underlying condition is gone.
 **A PI controller, honestly named** — the derivative term is present and
   active (`kd` non-zero, low-pass filtered before being applied), but the
-  system ran and was documented as pure PI first; the derivative term was
+  system ran and was documented as pure PI first, the derivative term was
   added afterward specifically to reduce settling time and tighten
   steady-state oscillation, and its filtering exists specifically because
   a raw derivative on 10ms-windowed QEI velocity data amplifies
@@ -114,8 +114,8 @@ All hardware initialization (`I2C_Init`, `CAN_Init`, `DRV8833_Init`,
 relative to other tasks.
 
 The STM32 peer runs a simple superloop: initialize clocks (MSI-sourced PLL
-at 80MHz, see Design notes), USART2, and CAN1; transmit a heartbeat every
-750ms; and print received telemetry frames from a CAN1 RX0 interrupt.
+at 80MHz, see Design notes), USART2, and CAN1, transmit a heartbeat every
+750ms, and print received telemetry frames from a CAN1 RX0 interrupt.
 
 ## Hardware setup
 
@@ -290,7 +290,7 @@ TM4C123GH6PM target.
 **Prerequisites**:
 - CCS with TivaWare C Series installed
 - A local FreeRTOS source tree (built against FreeRTOS's TivaWare CCS
-  port; not included in this repository — download from
+  port, not included in this repository, download from
   [freertos.org](https://www.freertos.org))
 
 1. Import `motor_controller/` into CCS as an existing project.
